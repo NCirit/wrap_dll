@@ -31,6 +31,9 @@ inline void log_info(const char* info) {
 
 inline void _hook_setup() {
 {% for ordinal, symbol, name in ordinal_and_names %}
+{% if name == '[NONAME]' %}
+{% set name = 'ExportByOrdinal' + ordinal|string %}
+{% endif %}
 #ifdef {{ name | upper }}
   {{ name }}_real = ({{ name }}_ptr)mProcs[{{ loop.index0 }}];
   mProcs[{{ loop.index0 }}] = (UINT_PTR)&{{ name }}_fake;

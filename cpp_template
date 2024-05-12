@@ -7,11 +7,11 @@ HINSTANCE mHinst = 0, mHinstDLL = 0;
 {{ 'extern "C" ' if architecture == 'x64' else '' }}UINT_PTR mProcs[{{ ordinal_and_names|length }}] = {0};
 
 LPCSTR mImportNames[] = {
-{% for ordinal, symbol, name in ordinal_and_names %}
+{% for ordinal, symbol, name, is_mangled in ordinal_and_names %}
 {% if name == '[NONAME]' %}
   (LPCSTR){{ ordinal }},
 {% else %}
-  "{{ name }}",
+  "{{ symbol }}",
 {% endif %}
 {% endfor %}
 };
@@ -30,7 +30,7 @@ inline void log_info(const char* info) {
 #include "{{ hook }}"
 
 inline void _hook_setup() {
-{% for ordinal, symbol, name in ordinal_and_names %}
+{% for ordinal, symbol, name, is_mangled in ordinal_and_names %}
 {% if name == '[NONAME]' %}
 {% set name = 'ExportByOrdinal' + ordinal|string %}
 {% endif %}
@@ -64,16 +64,16 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
   return TRUE;
 }
 
-{% for ordinal, symbol, name in ordinal_and_names %}
+{% for ordinal, symbol, name, is_mangled in ordinal_and_names %}
 {% if name == '[NONAME]' %}
 {% set wrapper_name = 'ExportByOrdinal' + ordinal|string %}
 {% else %}
 {% set wrapper_name = name + '_wrapper' %}
 {% endif %}
 {% if architecture == 'x64' %}
-extern "C" void {{ wrapper_name }}();
+{{ '' if is_mangled else 'extern "C" ' }}void {{ wrapper_name }}();
 {% else %}
-extern "C" __declspec(naked) void __stdcall {{ wrapper_name }}(){
+{{ '' if is_mangled else 'extern "C" ' }}__declspec(naked) void __stdcall {{ wrapper_name }}(){
 #ifdef _DEBUG
   log_info("calling {{ name }}");
 #endif

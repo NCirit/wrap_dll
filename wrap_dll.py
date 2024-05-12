@@ -64,6 +64,26 @@ def extract_symbols(dll):
     ordinal_name_pairs.append((ordinal, name))
   return ordinal_name_pairs
 
+def is_mangled(names):
+  random_filename = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+  try:
+    with open(random_filename, "w+t") as f:
+      f.write("\n".join(names))
+    demangled = subprocess.check_output([
+        args.undname, random_filename
+    ])
+  except:
+    raise
+  finally:
+    os.remove(random_filename)
+  demangled = demangled.decode("utf-8")
+  demangled = demangled.split("\r\n")
+  mangled = []
+  for index, (dname, name) in enumerate(zip(demangled, names)):
+    is_mangled = dname != name
+    mangled.append(is_mangled)
+  return mangled
+
 def undecorate(names):
   random_filename = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
   try:
@@ -83,9 +103,37 @@ def undecorate(names):
     if dname == name: # C function
       dname.replace("@", "_") # remove __stdcall, __fastcall decorations
     else:
+      # may cause problems for operator() overloadings
       end_index = dname.find("(")
       start_index = dname[:end_index].rfind(" ")
       dname = dname[start_index:end_index].replace("::", "_").strip()
+      
+      ## replace operator to keep syntax erros
+      dname = dname.replace(">=", "_gteq_").strip()
+      dname = dname.replace("<=", "_lteq_").strip()
+      dname = dname.replace("==", "_eq_").strip()
+      dname = dname.replace("!=", "_neq_").strip()
+      dname = dname.replace("++", "_inc_").strip()
+      dname = dname.replace("--", "_dec_").strip()
+      dname = dname.replace("[]", "_array_").strip()
+      dname = dname.replace("||", "_or_").strip()
+      dname = dname.replace("&&", "_and_").strip()
+      dname = dname.replace("<<", "_shl_").strip()
+      dname = dname.replace(">>", "_shr_").strip()
+      dname = dname.replace("->", "_deref_").strip()
+      dname = dname.replace("=", "_assign_").strip()
+      dname = dname.replace("+", "_plus_").strip()
+      dname = dname.replace("-", "_minus_").strip()
+      dname = dname.replace("*", "_mult_").strip()
+      dname = dname.replace("/", "_div_").strip()
+      dname = dname.replace(">", "_gt_").strip()
+      dname = dname.replace("<", "_lt_").strip()
+      dname = dname.replace("!", "_not_").strip()
+      dname = dname.replace("|", "_bitwise_or_").strip()
+      dname = dname.replace("&", "_bitwise_and_").strip()
+      dname = dname.replace("^", "_bitwise_xor_").strip()
+      dname = dname.replace("~", "_tilda_").strip()
+
       dname = f"CXX_FN_{index}_{dname}"
     undecorated.append(dname)
   return undecorated
@@ -130,7 +178,8 @@ if __name__ == "__main__":
   ordinals = [ordinal for ordinal, _ in ordinal_name_pairs]
   names = [name for _, name in ordinal_name_pairs]
   undecorated_names = undecorate(names)
-  ordinal_and_names = list(zip(ordinals, names, undecorated_names))
+  mangled = is_mangled(names)
+  ordinal_and_names = list(zip(ordinals, names, undecorated_names, mangled))
 
   if not args.dry:
     if args.force:

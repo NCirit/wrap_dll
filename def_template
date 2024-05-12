@@ -1,9 +1,13 @@
 LIBRARY {{ dll }}
 EXPORTS
-{% for ordinal, symbol, fn_name in ordinal_and_names %}
+{% for ordinal, symbol, fn_name, is_mangled in ordinal_and_names %}
 {% if name == '[NONAME]' or symbol == '[NONAME]' %}
   ExportByOrdinal{{ ordinal }} @{{ ordinal }} NONAME
 {% else %}
+{% if is_mangled %}
+  {{ symbol }}=?{{ fn_name }}_wrapper@@YGXXZ @{{ ordinal }}
+{% else %}
   {{ symbol }}={{ fn_name }}_wrapper @{{ ordinal }}
+{% endif %}
 {% endif %}
 {% endfor %}
